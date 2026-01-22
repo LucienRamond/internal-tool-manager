@@ -21,5 +21,8 @@ from models import cost_tracking
 with app.app_context():
     db.create_all()
 
-if __name__ == "__name__":
+from api.tools import tool_route
+app.register_blueprint(tool_route)
+
+if "__name__" == "__main__":
         app.run(debug=True)
