@@ -2,11 +2,13 @@ import os
 from flask import Flask
 from dotenv import load_dotenv, find_dotenv
 from flask_sqlalchemy import SQLAlchemy
+from flasgger import Swagger
 
 load_dotenv(find_dotenv())
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URI")
+swagger = Swagger(app)
 
 db = SQLAlchemy(app)
 

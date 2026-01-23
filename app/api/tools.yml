@@ -1,0 +1,30 @@
+Example endpoint returning tool by id with usage metrics
+---
+parameters:
+  - in: path
+    name: id
+    type: path
+    required: true
+    schema:
+      type: integer
+      minimum: 1
+    description: id of the tool
+definitions:
+  Palette:
+    type: object
+    properties:
+      palette_name:
+        type: array
+        items:
+          $ref: "#/definitions/Color"
+  Color:
+    type: string
+responses:
+  200:
+    description: Details of the tool
+    content:
+      application/json:
+        schema:
+          type: object
+          items:
+            type: string

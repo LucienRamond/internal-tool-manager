@@ -1,7 +1,8 @@
 from flask import Blueprint, request
 from services.tool_service import ToolService
+from flasgger import swag_from
 
-tool_route = Blueprint('band_route', __name__)
+tool_route = Blueprint('tool_route', __name__)
 
 @tool_route.route('/api/tools', methods=['GET'])
 def get_all_tools():
@@ -16,6 +17,7 @@ def get_all_tools():
     return ToolService.get_all_tools(department, status, category, min_cost, max_cost, sort, page, per_page)
 
 @tool_route.route('/api/tools/<int:id>', methods=['GET'])
+@swag_from('tools.yml')
 def get_tool(id):
     return ToolService.get_tool_by_id(id)
 
