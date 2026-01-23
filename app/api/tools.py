@@ -28,3 +28,7 @@ def create():
 def update(id):
     data = request.get_json()
     return ToolService.update_tool(id, data)
+
+@tool_route.route('/api/tools/<int:id>', methods=['DELETE'])
+def delete(id):
+    return ToolService.delete_tool(id)

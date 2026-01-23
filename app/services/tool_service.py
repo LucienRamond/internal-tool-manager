@@ -282,3 +282,19 @@ class ToolService():
             'filtered':len(ToolService.get_tools_with_categories().all()) - len(tools),
             'filters_applied':filters_applied,
         }, 200)
+    
+    def delete_tool(id):
+        tool_query = ToolService.get_tools_with_categories().filter(Tools.id == id).first()
+
+        if not tool_query:
+           return make_response({
+                "error": "Tool not found",
+                "message": f'Tool with ID {id} does not exist'
+                }, 404)
+        
+        name = tool_query[0].name
+        
+        db.session.delete(tool_query[0])
+        db.session.commit()
+
+        return make_response({'message' : f'{name} successfully deleted'})
