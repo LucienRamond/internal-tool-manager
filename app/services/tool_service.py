@@ -1,5 +1,5 @@
 from flask import make_response
-from models.cost_tracking import Cost_tracking
+from services.usage_logs_service import UsageLogs
 from models.categories import Categories
 from models.tools import Tools
 from main import db
@@ -11,9 +11,26 @@ class ToolService():
     
     def get_tool_by_id(id):
         tool_category_query = ToolService.get_tools_with_categories().filter(Tools.id == id).all()
+
+        if not tool_category_query:
+            return make_response({
+                'message' : 'No tool found with this id',
+                "id":id
+                }, 404)
+
         tool = tool_category_query[0][0]
         category = tool_category_query[0][1]
+
         cost_tracking = CostTracking.get_cost_tracking_by_tool_id(id)
+
+        usage_logs = UsageLogs.get_usage_logs_by_tool_id(id)
+        total_sessions = 0
+        avg_session_minutes = 0
+        if usage_logs :
+            total_sessions = len(usage_logs)
+            for session in usage_logs :
+                total_sessions = total_sessions + session["usage_minutes"]
+            avg_session_minutes = total_sessions / len(usage_logs)
 
         response = {
             "id": tool.id,
@@ -31,8 +48,8 @@ class ToolService():
             "updated_at": tool.updated_at,
             "usage_metrics": {
                 "last_30_days": {
-                "total_sessions": 127,
-                "avg_session_minutes": 45
+                "total_sessions": total_sessions,
+                "avg_session_minutes": avg_session_minutes
                 }
             }
         }

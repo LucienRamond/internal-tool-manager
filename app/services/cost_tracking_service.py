@@ -6,7 +6,7 @@ class CostTracking():
         return cost_tracking
     
     def get_cost_tracking_by_tool_id(tool_id):
-        cost_tracking_query = CostTracking.get_cost_tracking().filter(Cost_tracking.tool_id == tool_id)
+        cost_tracking_query = CostTracking.get_cost_tracking().filter(Cost_tracking.tool_id == tool_id).all()
         cost_tracking = cost_tracking_query[0]
 
         response = {
