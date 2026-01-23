@@ -1,5 +1,6 @@
 from functools import reduce
 from flask import make_response
+from utils.check_functions import check_monthly_cost, check_name_length, check_tools_owner_department, check_tools_status, check_valid_url, check_vendor_length
 from utils.globals import OWNER_DEPARTMENT, TWO_DECIMAL_REGEX, VERIFY_DOMAIN_REGEX
 from services.usage_logs_service import UsageLogs
 from models.categories import Categories
@@ -17,12 +18,14 @@ class ToolService():
         description = ""
         vendor = ""
 
+        # Check optionnal fields
         if "website_url" in data :
            website_url = data["website_url"]
 
         if "description" in data :
             description = data["description"]
 
+        # Check required fields
         try :
             name = data["name"]
             monthly_cost = data["monthly_cost"]
@@ -32,48 +35,45 @@ class ToolService():
         except Exception as e :
             return make_response({
                 "message": f'le champ {e} est obligatoire'
-            }, 422)
+            }, 400)
         
-        tool_category = ToolService.get_tools_with_categories().filter(Categories.id == category_id).all()
-        verify_unique_name = ToolService.get_tools_with_categories().filter(Tools.name == name).all()
-  
+        tool_category = ToolService.get_tools_with_categories().filter(Categories.id == category_id).first()
+        verify_unique_name = ToolService.get_tools_with_categories().filter(Tools.name == name).first()
+
+        # Validation data
         try :
-            message = ''
-            if not len(name) >= 2 or not len(name) <= 100:
-                message = 'Le nom doit doit être compris entre 2 et 100 caractères'
-                raise Exception 
+            details = {}
+
+            if check_name_length(name):
+                details.update(check_name_length(name))
             
             if len(verify_unique_name) > 0:
-                message = f'{name} existe déjà en base de donées.'
-                raise Exception
+                details.update({"Name" : f'{name} already exists'})
 
-            if not monthly_cost > 0 or not re.match(TWO_DECIMAL_REGEX, str(monthly_cost)):
-                message = 'Le coût mensuel doit être superieur à 0 et maximum 2 décimales.'
-                raise Exception 
+            if check_monthly_cost(data["monthly_cost"]):
+                details.update(check_monthly_cost(data["monthly_cost"]))
 
-            if not owner_department in OWNER_DEPARTMENT:
-                message = "Le departement d'aquisition doit être Engineering, Sales, Marketing, HR, Finance, Operations ou Design."
-                raise Exception 
+            if check_tools_owner_department(data["owner_department"]):
+                details.update(check_tools_owner_department(data["owner_department"]))
 
             if len(website_url) :
-                if not re.match(VERIFY_DOMAIN_REGEX, website_url):
-                    message = "Le nom de domaine doit être valide."
-                    raise Exception
+                if check_valid_url(website_url):
+                    details.update(check_valid_url(website_url))
                 
             if len(tool_category) == 0 :
-                message = f"La catégorie avec l'id {category_id} n'existe pas."
-                raise Exception
+                details.update({"tool_category" : f"Category with id : {category_id} doesn't exist"})
 
-
-            if len(vendor) > 100 :
-                message = "Le nom du vendeur ne doit pas exceder 100 caractères."
-                raise Exception
+            if check_vendor_length(vendor) :
+                details.update(check_vendor_length(vendor))
             
-             
-        except Exception as e :
+            if len(details) > 0:
+                raise Exception            
+        
+        except Exception:
             return make_response({
-                "message": message
-            }, 422)
+                "error": "Validation failed",
+                "details" : details
+            }, 400)
 
 
         tool = Tools(name=name, 
@@ -104,20 +104,79 @@ class ToolService():
         
         return make_response(response, 201)
     
+    def update_tool(tool_id, data):
+        tool_query = ToolService.get_tools_with_categories().filter(Tools.id == tool_id).first()
+
+        if not tool_query:
+           return make_response({
+                "error": "Tool not found",
+                "message": f'Tool with ID {tool_id} does not exist'
+                }, 404) 
+
+        tool = tool_query[0]
+        category = tool_query[1]
+
+        # Check fields
+        try :
+            details = {}
+            if "status" in data:
+                if check_tools_status(data["status"]):
+                    details.update(check_tools_status(data["status"]))        
+                else :
+                    tool.status = data["status"]   
+
+            if 'description' in data:
+                tool.description = data["description"]                     
+
+            if 'monthly_cost' in data:
+                if check_monthly_cost(data["monthly_cost"]):
+                    details.update(check_monthly_cost(data["monthly_cost"]))
+                else :
+                    tool.monthly_cost = data["monthly_cost"]
+            
+            if len(details) > 0:
+                raise Exception
+            
+        except Exception as e:
+            return make_response({
+                "error": "Validation failed",
+                "details" : details
+            }, 400)
+
+        db.session.commit()
+
+        response = {
+            "id": tool.id,
+            "name": tool.name,
+            "description": tool.description,
+            "vendor": tool.vendor, 
+            "website_url": tool.website_url,
+            "category": category.name,
+            "monthly_cost": tool.monthly_cost,
+            "owner_department": tool.owner_department,
+            "status": tool.status, 
+            "active_users_count": tool.active_users_count,
+            "created_at": tool.created_at,
+            "updated_at": tool.updated_at
+        }
+
+        return make_response(response, 200)
+    
     def get_tool_by_id(id):
-        tool_category_query = ToolService.get_tools_with_categories().filter(Tools.id == id).all()
+        tool_category_query = ToolService.get_tools_with_categories().filter(Tools.id == id).first()
 
         if not tool_category_query:
-            return make_response({
-                'message' : 'No tool found with this id',
-                "id":id
-                }, 404)
+           return make_response({
+                "error": "Tool not found",
+                "message": f'Tool with ID {id} does not exist'
+                }, 404) 
 
-        tool = tool_category_query[0][0]
-        category = tool_category_query[0][1]
+        tool = tool_category_query[0]
+        category = tool_category_query[1]
 
         cost_tracking = CostTracking.get_cost_tracking_by_tool_id(id)
 
+        # Calculates metrics
         usage_logs = UsageLogs.get_usage_logs_by_tool_id(id)
         total_sessions = 0
         avg_session_minutes = 0
@@ -157,6 +216,8 @@ class ToolService():
         filters_applied = {}
         total = 0
 
+        # Check and apply filters
+        # TODO: refactor all these if
         if department :
             tools_query = tools_query.filter(Tools.owner_department == department)
             filters_applied.update({"department": department})   
@@ -177,6 +238,7 @@ class ToolService():
             tools_query = tools_query.filter(Tools.monthly_cost <= float(max_cost))
             filters_applied.update({"max_cost": float(max_cost)})
 
+        # Check and apply sorting
         if sort :
             if sort == "name":
                 tools_query = tools_query.order_by(Tools.name)

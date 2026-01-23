@@ -23,3 +23,8 @@ def get_tool(id):
 def create():
     data = request.get_json()
     return ToolService.create_tool(data)
+
+@tool_route.route('/api/tools/<int:id>', methods=['PUT'])
+def update(id):
+    data = request.get_json()
+    return ToolService.update_tool(id, data)
