@@ -14,3 +14,7 @@ def get_all_tools():
     page = request.args.get('page')
     per_page = request.args.get('per_page')
     return ToolService.get_all_tools(department, status, category, min_cost, max_cost, sort, page, per_page)
+
+@tool_route.route('/api/tools/<int:id>', methods=['GET'])
+def get_tool(id):
+    return ToolService.get_tool_by_id(id)
