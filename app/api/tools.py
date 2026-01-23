@@ -18,3 +18,8 @@ def get_all_tools():
 @tool_route.route('/api/tools/<int:id>', methods=['GET'])
 def get_tool(id):
     return ToolService.get_tool_by_id(id)
+
+@tool_route.route('/api/tools', methods=['POST'])
+def create():
+    data = request.get_json()
+    return ToolService.create_tool(data)
